@@ -4,7 +4,7 @@ import scipy.signal
 import numpy as np
 
 
-file_name = "./DATA/NANO_K_5.mtr"
+file_name = "./DATA/NANO_K_7.mtr"
 header_length = 19
 test_data = pd.read_csv(file_name, sep=",", skiprows=header_length, decimal=".")
 test_data = test_data[['Elongation', 'Force']]
@@ -14,7 +14,11 @@ test_data = test_data.groupby(['Elongation'])['Force'].mean().reset_index()
 
 test_data = test_data.iloc[0:test_data['Force'].argmax(), :]
 
-test_data["dF"] = scipy.signal.savgol_filter(test_data["Force"].values, 31, 1,
+test_data["Force"] = test_data["Force"] - test_data["Force"].min()
+test_data["Force"] = test_data["Force"] / test_data["Force"].max()
+
+
+test_data["dF"] = scipy.signal.savgol_filter(test_data["Force"].values, 25, 1,
                                              deriv=1, delta=1.0, axis=- 1,
                                              mode='interp', cval=0.0)
 
@@ -22,9 +26,9 @@ test_data["dF"] = test_data["dF"] - test_data["dF"].min()
 test_data["dF"] = test_data["dF"] / test_data["dF"].max()
 test_data["Elongation"] = test_data["Elongation"] / test_data["Elongation"].max()
 
-test_data["dF"] = scipy.signal.savgol_filter(test_data["dF"].values, 51, 1)
+# test_data["dF"] = scipy.signal.savgol_filter(test_data["dF"].values, 31, 0)
 
-half_window = 50
+half_window = 30
 
 slopes = np.zeros(len(test_data["dF"]))
 for i in range(half_window, len(test_data["dF"]) - half_window):
@@ -35,8 +39,16 @@ for i in range(half_window, len(test_data["dF"]) - half_window):
 
 test_data["slopes"] = slopes
 
+test_data["selection"] = ((test_data["slopes"].abs() < 0.5*test_data["slopes"].max()).astype(int))
+
 fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
-ax1.plot(test_data['Elongation'], test_data['Force'], '-')
+# ax1.plot(test_data['Elongation'], test_data['Force'], '-')
+
+
+filtered = test_data[test_data["selection"] == 1]
+ax1.plot(filtered["Elongation"], filtered["Force"], 'ro')
+ax1.plot(test_data["Elongation"], test_data["Force"], 'b-')
+
 ax2.plot(test_data['Elongation'], test_data['dF'], '-')
 ax3.plot(test_data['Elongation'], test_data['slopes'], '-')
 plt.show()
