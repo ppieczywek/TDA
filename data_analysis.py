@@ -4,7 +4,7 @@ import scipy.signal
 import numpy as np
 
 
-file_name = "./DATA/NANO_K_7.mtr"
+file_name = "./DATA/NANO_K_14.mtr"
 header_length = 19
 test_data = pd.read_csv(file_name, sep=",", skiprows=header_length, decimal=".")
 test_data = test_data[['Elongation', 'Force']]
