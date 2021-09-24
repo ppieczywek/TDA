@@ -1,25 +1,46 @@
-import pandas as pd
-import matplotlib.pyplot as plt
+# import pandas as pd
+# import matplotlib.pyplot as plt
 from mtr import mtr
+import wx
 
-file_name = "./DATA/NANOCEL_KW.CHAL_900PPM_3.mtr"
-header_length = 19
-test_data = pd.read_csv(file_name, sep=",", skiprows=header_length, decimal=".")
-test_data = test_data[['Elongation', 'Force']]
-test_data = test_data.groupby(['Elongation'])['Force'].mean().reset_index()
+app = wx.App()
+frame = wx.Frame(None, -1, 'MicrotestData')
+frame.SetSize(0, 0, 200, 50)
+
+# Create open file dialog
+openFileDialog = wx.FileDialog(frame, "Open", "", "",
+                               "Select MTR output data files (*.mtr)|*.mtr",
+                               wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE)
+
+openFileDialog.ShowModal()
+files = openFileDialog.GetPaths()
+openFileDialog.Destroy()
 
 
-init_pos = mtr.get_init_point(test_data["Force"].values)
-break_point = mtr.get_break_point(test_data["Force"].values)
-limits = mtr.get_slopes_limits(test_data['Force'].values,
-                               test_data['Elongation'].values, init_pos)
-values = mtr.get_slopes_values(test_data['Force'].values,
-                               test_data['Elongation'].values,
-                               init_pos,
-                               limits)
+# file_path = file
+# file_name = file_path.split('\\')[-1]
 
-print(values)
+# file_name = "./DATA/NANO_K_3.mtr"
+# header_length = 19
+# test_data = pd.read_csv(file_name, sep=",", skiprows=header_length, decimal=".")
+# test_data = test_data[['Elongation', 'Force']]
+# test_data = test_data.groupby(['Elongation'])['Force'].mean().reset_index()
 
+
+tt = mtr.process_mtr_file(files)
+tt.to_csv('out.csv', index=False)
+print(tt)
+
+# init_pos = mtr.get_init_point(test_data["Force"].values)
+# break_point = mtr.get_break_point(test_data["Force"].values)
+# limits = mtr.get_slopes_limits(test_data['Force'].values,
+#                                test_data['Elongation'].values, init_pos)
+# values = mtr.get_slopes_values(test_data['Force'].values,
+#                                test_data['Elongation'].values,
+#                                init_pos,
+#                                limits)
+#
+# flt = mtr.remove_spike(test_data["Force"].values)
 #
 #
 # test_data = test_data.iloc[0:test_data['Force'].argmax(), :]
@@ -54,28 +75,32 @@ print(values)
 # limits = limits[np.where((limits < init_pos).sum(axis=1) == 0)[0], :]
 
 
-fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
-
-x = test_data["Elongation"][init_pos]
-y = test_data["Force"][init_pos]
-
-ax1.plot(test_data["Elongation"], test_data["Force"], 'b-')
-ax1.plot(x, y, 'ro')
-
-x = test_data["Elongation"][break_point]
-y = test_data["Force"][break_point]
-
-ax1.plot(test_data["Elongation"], test_data["Force"], 'b-')
-ax1.plot(x, y, 'ko')
-
-for i in range(limits.shape[0]):
-    ax1.plot(test_data["Elongation"][limits[i, 0]:limits[i, 1]],
-             test_data["Force"][limits[i, 0]:limits[i, 1]], 'yo')
-
-
-# ax2.plot(test_data['Elongation'], test_data['dF'], '-')
-# ax3.plot(test_data['Elongation'], test_data['slopes'], '-')
-plt.show()
+# fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+#
+# x = test_data["Elongation"][init_pos]
+# y = test_data["Force"][init_pos]
+#
+# ax1.plot(test_data["Elongation"], test_data["Force"], 'b-')
+# ax1.plot(x, y, 'ro')
+#
+# x = test_data["Elongation"][break_point]
+# y = test_data["Force"][break_point]
+#
+# ax1.plot(test_data["Elongation"], test_data["Force"], 'b-')
+# ax1.plot(x, y, 'ko')
+#
+# ax2.plot(test_data["Elongation"], flt, 'b-')
+# ax2.plot(x, y, 'ko')
+#
+#
+# for i in range(limits.shape[0]):
+#     ax1.plot(test_data["Elongation"][limits[i, 0]:limits[i, 1]],
+#              test_data["Force"][limits[i, 0]:limits[i, 1]], 'yo')
+#
+#
+# # ax2.plot(test_data['Elongation'], test_data['dF'], '-')
+# # ax3.plot(test_data['Elongation'], test_data['slopes'], '-')
+# plt.show()
 
 
 # print(test_data.columns)

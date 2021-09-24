@@ -1,5 +1,6 @@
 from scipy import signal
 import numpy as np
+import pandas as pd
 
 
 class mtr():
@@ -34,8 +35,13 @@ class mtr():
 
     @staticmethod
     def get_break_point(force, force_drop_thr=0.25):
+        force = signal.savgol_filter(force, 5, 3, deriv=0, delta=1.0, axis=- 1,
+                                     mode='interp', cval=0.0)
         break_point = np.where((abs(np.diff(force, n=1, axis=0)) > (0.25*force.max())) == 1)[0]
-        return break_point[0]
+        if len(break_point) > 0:
+            return break_point[0]
+        else:
+            return -1
 
     @staticmethod
     def get_slopes_limits(force, displacement, init_pos):
@@ -84,3 +90,84 @@ class mtr():
             slopes_values.append(a)
 
         return slopes_values
+
+    def remove_spike(force):
+        window = np.array([1.0, -1])
+        filtered = signal.convolve(force, window, mode='same')
+        filtered[filtered < 5] = 0
+        smooth = signal.savgol_filter(force, 35, 1, deriv=0, delta=1.0, axis=- 1,
+                                      mode='interp', cval=0.0)
+        force[filtered > 0] = smooth[filtered > 0]
+        return force
+
+    def process_mtr_file(data_files):
+        mtr_header_length = 19
+
+        file_names = []
+        max_force = []
+        force_at_break = []
+        elongation_at_start = []
+        elongation_at_max_force = []
+        elongation_at_break = []
+        slope_1 = []
+        slope_2 = []
+
+        for data_file in data_files:
+
+            file_name = data_file.split('\\')[-1]
+            file_names.append(file_name)
+            data = pd.read_csv(data_file, sep=",", skiprows=mtr_header_length, decimal=".")
+            data = data[['Elongation', 'Force']]
+            data = data.groupby(['Elongation'])['Force'].mean().reset_index()
+            force = data["Force"].values
+
+            force = mtr.remove_spike(force)
+            elongation = data['Elongation'].values
+
+            init_pos = mtr.get_init_point(force)
+            break_point = mtr.get_break_point(force)
+
+            limits = mtr.get_slopes_limits(force, elongation, init_pos)
+            values = mtr.get_slopes_values(force, elongation, init_pos, limits)
+
+            if values:
+                if len(values) == 1:
+                    slope_1.append(values[0])
+                    slope_2.append(None)
+
+                if len(values) == 2:
+                    slope_1.append(values[0])
+                    slope_2.append(values[1])
+
+            elongation_at_start.append(elongation[int(init_pos)])
+
+            force -= force[int(init_pos)]
+            elongation -= elongation[int(init_pos)]
+
+            max_force.append(np.max(force))
+            elongation_at_max_force.append(elongation[np.argmax(force)])
+
+            if break_point > -1:
+                force_at_break.append(force[int(break_point)])
+                elongation_at_break.append(elongation[int(break_point)])
+            else:
+                force_at_break.append(None)
+                elongation_at_break.append(None)
+
+        df = pd.DataFrame(list(zip(file_names,
+                                   elongation_at_start,
+                                   slope_1,
+                                   slope_2,
+                                   elongation_at_max_force,
+                                   max_force,
+                                   elongation_at_break,
+                                   force_at_break)),
+                          columns=['file_name',
+                                   'elongation_at_start',
+                                   'slope_1',
+                                   'slope_2',
+                                   'elongation_at_max_force',
+                                   'max_force',
+                                   'elongation_at_break',
+                                   'force_at_break'])
+        return df
